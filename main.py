@@ -44,36 +44,40 @@ def make_synthetic_data(n_genes=1500, n_cancer=40, n_normal=20, seed=42):
         "Type": ["Cancer"] * n_cancer + ["Normal"] * n_normal
     })
     return expr, meta
+
 def classify_type(x):
     text = str(x).lower()
-    if "normal" in text:
+    normal_keywords = ["normal", "control", "healthy", "benign", "adjacent", "non-tumor", "wildtype", "non-cancer", "wt", "ctrl"]
+    cancer_keywords = ["tumor", "cancer", "carcinoma", "malignant", "adenocarcinoma", "ductal", "invasive", "metastatic",
+                       "primary", "tumour", "neoplasm", "cancerous", "oncology"]
+    if any(keyword in text for keyword in normal_keywords):
         return "Normal"
-    elif "tumor" in text or "cancer" in text or "carcinoma" in text:
+    elif any(keyword in text for keyword in cancer_keywords):
         return "Cancer"
     else:
-        return "Cancer"
+        return "Unclassified"
 
 def load_data(expr_path=None, meta_path=None, log2_if_needed=True):
     if expr_path and os.path.exists(expr_path) and (meta_path is None):
         expression = pd.read_csv(expr_path, sep="\t", comment="!", index_col=0)
-        metadata = []
+        
+        metadata_lines = []
         with open(expr_path) as f:
             for line in f:
                 if line.startswith("!Sample_characteristics_ch1"):
-                    parts = line.strip().split("\t")
-                    metadata.append(parts)
+                    metadata_lines.append(line.strip().split("\t"))
 
         meta_dict = {}
-        for row in metadata:
-            key = row[0].replace("!Sample_characteristics_ch1 = ", "")
-            values = row[1:]
-            meta_dict[key] = values
+        if metadata_lines:
+            for i, row in enumerate(metadata_lines):
+                key = row[0].replace("!Sample_characteristics_ch1 = ", "")
+                values = row[1:]
+                meta_dict[key] = values
 
         metadata = pd.DataFrame(meta_dict)
         metadata.insert(0, "SampleID", expression.columns)
 
-
-        metadata["Type"] = metadata.drop(columns=["SampleID"]).apply(
+        metadata["Type"] = metadata.apply(
             lambda row: classify_type(" ".join(row.values.astype(str))),
             axis=1
         )
@@ -81,7 +85,7 @@ def load_data(expr_path=None, meta_path=None, log2_if_needed=True):
     elif expr_path and meta_path and os.path.exists(expr_path) and os.path.exists(meta_path):
         expression = pd.read_csv(expr_path, index_col=0)
         metadata = pd.read_csv(meta_path)
-
+    
     else:
         print("[INFO] No valid files provided; generating a synthetic dataset so the pipeline can run.")
         expression, metadata = make_synthetic_data()
@@ -97,7 +101,7 @@ def plot_pca(expression, metadata, out_path):
     label_map = metadata.set_index("SampleID")["Type"].to_dict()
     labels = np.array([label_map[s] for s in expression.columns])
 
-    color_map = {"Cancer": "red", "Normal": "blue"}
+    color_map = {"Cancer": "red", "Normal": "blue", "Unclassified": "Green"}
     colors = [color_map[l] for l in labels]
 
     plt.figure(figsize=(7, 6), dpi=130)
