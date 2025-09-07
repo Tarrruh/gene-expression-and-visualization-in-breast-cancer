@@ -210,9 +210,19 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="PCA analysis of GEO dataset")
     print("Loading data...")
-    expr, meta = load_data(expr_path="C:\Users\TARA\Desktop\gene-expression-and-visualization-in-breast-cancer\GSE45827_series_matrix.txt")
     parser.add_argument('--expression', type=str, help="Giving the path of the GEO file")
     parser.add_argument('--metadata', type=str, help= "Path of the metadata")
+
+    args = parser.parse_args()
+
+    exp_path = args.expression
+    met_path = args.metadata
+
+    
+    print(exp_path)
+
+    expr, meta = load_data(expr_path=exp_path, meta_path=met_path)
+
     
     print("\nExpression data shape:", expr.shape)
     print("Metadata shape:", meta.shape)
