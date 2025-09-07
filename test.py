@@ -4,15 +4,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+import argparse
 
 
 def classify_type(x):
     """Classification function with keywords"""
     text = str(x).lower()
-
+    
+    # Normal/control keywords
     normal_keywords = ["normal", "control", "healthy", "adjacent", "non-tumor", "non-cancer", 
                       "non-malignant", "benign", "wildtype", "wt", "ctrl"]
-
+    
+    # Cancer/tumor keywords  
     cancer_keywords = ["tumor", "cancer", "carcinoma", "malignant", "adenocarcinoma", 
                       "ductal", "invasive", "metastatic", "primary", "tumor tissue",
                       "cancerous", "neoplasm", "oncology", "tumour"]
@@ -24,6 +27,7 @@ def classify_type(x):
         return "Cancer"
     
     else:
+        print(x)
         return "Unclassified"
 
 
@@ -204,8 +208,25 @@ def run_pca_analysis(expression, metadata, output_dir="outputs"):
     return variance_ratios, pca_results
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="PCA analysis of GEO dataset")
     print("Loading data...")
-    expr, meta = load_data()
+    parser.add_argument('--expression', type=str, help="Giving the path of the GEO file")
+    parser.add_argument('--metadata', type=str, help= "Path of the metadata")
+
+    args = parser.parse_args()
+
+    exp_path = args.expression
+    met_path = args.metadata
+
+    
+    print(exp_path)
+    print("%"*50)
+    print(classify_type("diagnosis: Breast cancer"))
+    print("%"*50)
+
+    expr, meta = load_data(expr_path=exp_path, meta_path=met_path)
+
     
     print("\nExpression data shape:", expr.shape)
     print("Metadata shape:", meta.shape)
@@ -218,11 +239,11 @@ if __name__ == "__main__":
     print("RUNNING PCA ANALYSIS")
     print("="*50)
 
-    variance_ratios, pca_results = run_pca_analysis(expr, meta)
+    # variance_ratios, pca_results = run_pca_analysis(expr, meta)
     
     print("\n" + "="*50)
     print("PCA ANALYSIS COMPLETE")
     print("="*50)
     print(f"✅ PCA plot generated and saved")
     print(f"✅ PCA coordinates saved to CSV")
-    print(f"✅ Total variance explained: {sum(variance_ratios)*100:.1f}%")
+    # print(f"✅ Total variance explained: {sum(variance_ratios)*100:.1f}%")
