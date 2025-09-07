@@ -4,18 +4,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-import argparse
 
 
 def classify_type(x):
     """Classification function with keywords"""
     text = str(x).lower()
-    
-    # Normal/control keywords
+
     normal_keywords = ["normal", "control", "healthy", "adjacent", "non-tumor", "non-cancer", 
                       "non-malignant", "benign", "wildtype", "wt", "ctrl"]
-    
-    # Cancer/tumor keywords  
+
     cancer_keywords = ["tumor", "cancer", "carcinoma", "malignant", "adenocarcinoma", 
                       "ductal", "invasive", "metastatic", "primary", "tumor tissue",
                       "cancerous", "neoplasm", "oncology", "tumour"]
@@ -207,12 +204,8 @@ def run_pca_analysis(expression, metadata, output_dir="outputs"):
     return variance_ratios, pca_results
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(description="PCA analysis of GEO dataset")
     print("Loading data...")
-    expr, meta = load_data(expr_path="C:\Users\TARA\Desktop\gene-expression-and-visualization-in-breast-cancer\GSE45827_series_matrix.txt")
-    parser.add_argument('--expression', type=str, help="Giving the path of the GEO file")
-    parser.add_argument('--metadata', type=str, help= "Path of the metadata")
+    expr, meta = load_data()
     
     print("\nExpression data shape:", expr.shape)
     print("Metadata shape:", meta.shape)
