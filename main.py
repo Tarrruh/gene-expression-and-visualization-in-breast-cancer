@@ -5,28 +5,30 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import argparse
+from collections import defaultdict
 
 
 def classify_type(x):
     """Classification function with keywords"""
     text = str(x).lower()
     
-    # Normal/control keywords
-    normal_keywords = ["normal", "control", "healthy", "adjacent", "non-tumor", "non-cancer", 
-                      "non-malignant", "benign", "wildtype", "wt", "ctrl"]
+    normal_keywords = [
+        "normal", "control", "healthy", "adjacent", "non-tumor", "non-cancer", 
+        "non-malignant", "benign", "wildtype", "wt", "ctrl"
+    ]
     
-    # Cancer/tumor keywords  
-    cancer_keywords = ["tumor", "cancer", "carcinoma", "malignant", "adenocarcinoma", 
-                      "ductal", "invasive", "metastatic", "primary", "tumor tissue",
-                      "cancerous", "neoplasm", "oncology", "tumour"]
+    cancer_keywords = [
+        "tumor", "cancer", "carcinoma", "malignant", "adenocarcinoma", 
+        "ductal", "invasive", "metastatic", "primary", "tumor tissue",
+        "cancerous", "neoplasm", "oncology", "tumour"
+    ]
 
     if any(keyword in text for keyword in normal_keywords):
         return "Normal"
-    
     elif any(keyword in text for keyword in cancer_keywords):
         return "Cancer"
-    
     else:
+        print(x)  # Debug unclassified cases
         return "Unclassified"
 
 
@@ -34,13 +36,13 @@ def load_data(expr_path=None, meta_path=None, log2_if_needed=True):
     """
     Load expression and metadata, with improved sample classification
     """
-    
+
     if expr_path and os.path.exists(expr_path) and (meta_path is None):
-    # Case 1: Single GEO file with embedded metadata
+        # Case 1: Single GEO file with embedded metadata
         expression = pd.read_csv(expr_path, sep="\t", comment="!", index_col=0)
-        
-        metadata_info = {}
         sample_names = list(expression.columns)
+
+        characteristics_by_sample = defaultdict(list)
 
         with open(expr_path, 'r') as f:
             lines = f.readlines()
@@ -48,28 +50,22 @@ def load_data(expr_path=None, meta_path=None, log2_if_needed=True):
         for line in lines:
             if line.startswith("!Sample_characteristics_ch1"):
                 parts = line.strip().split("\t")
-                key = parts[0].replace("!", "")
                 values = [val.strip().strip('"') for val in parts[1:]]
-                metadata_info[key] = values
 
+                for i, val in enumerate(values):
+                    characteristics_by_sample[i].append(val)
 
-        metadata = pd.DataFrame({"SampleID": sample_names})
-        sample_info = []
-        
-        for sample in sample_names:
-            sample_idx = sample_names.index(sample)
-            combined_info = []
-            for key, values in metadata_info.items():
-                if sample_idx < len(values) and values[sample_idx].strip():
-                    combined_info.append(values[sample_idx].strip())
-            sample_info.append(" ".join(combined_info))
+        sample_info = ["; ".join(characteristics_by_sample[i]) for i in range(len(sample_names))]
 
-        metadata["Type"] = [classify_type(info) for info in sample_info]
-        metadata["Description"] = sample_info
-        
+        metadata = pd.DataFrame({
+            "SampleID": sample_names,
+            "Description": sample_info,
+            "Type": [classify_type(info) for info in sample_info]
+        })
+
         print(f"[DEBUG] Sample classification summary:")
         print(metadata["Type"].value_counts())
-        
+
     elif expr_path and meta_path and os.path.exists(expr_path) and os.path.exists(meta_path):
         expression = pd.read_csv(expr_path, index_col=0)
         metadata = pd.read_csv(meta_path)
@@ -97,18 +93,11 @@ def load_data(expr_path=None, meta_path=None, log2_if_needed=True):
         
         print(f"[DEBUG] Sample classification summary:")
         print(metadata["Type"].value_counts())
-    
-    # else:
-    #     print("[INFO] No valid files provided; generating a synthetic dataset so the pipeline can run.")
-    #     expression, metadata = make_synthetic_data()
-
+    print(metadata)
     return expression, metadata
 
 
 def make_synthetic_data(n_genes=1500, n_cancer=40, n_normal=20, seed=42):
-    """Generate synthetic data for testing"""
-    import numpy as np
-    
     rng = np.random.default_rng(seed)
     genes = [f"GENE_{i:04d}" for i in range(n_genes)]
     samples = [f"CANCER_{i:02d}" for i in range(n_cancer)] + [f"NORMAL_{i:02d}" for i in range(n_normal)]
@@ -132,7 +121,6 @@ def make_synthetic_data(n_genes=1500, n_cancer=40, n_normal=20, seed=42):
 
 
 def plot_pca(expression, metadata, out_path="pca_plot.png"):
-    """PCA INFO"""
     print("[INFO] Generating PCA plot...")
     
     scaler = StandardScaler(with_mean=True, with_std=True)
@@ -161,14 +149,11 @@ def plot_pca(expression, metadata, out_path="pca_plot.png"):
               fontsize=14, fontweight='bold', pad=20)
 
     plt.legend(frameon=True, fancybox=True, shadow=True, loc='best')
-
     plt.grid(True, alpha=0.3)
-
     plt.tight_layout()
 
     plt.savefig(out_path, dpi=300, bbox_inches="tight")
     print(f"[DONE] PCA plot saved to: {out_path}")
-
     plt.show()
 
     print(f"[INFO] PC1 explains {pca.explained_variance_ratio_[0]*100:.2f}% of variance")
@@ -179,10 +164,6 @@ def plot_pca(expression, metadata, out_path="pca_plot.png"):
 
 
 def run_pca_analysis(expression, metadata, output_dir="outputs"):
-    """
-    Run PCA analysis and save results
-
-    """
     os.makedirs(output_dir, exist_ok=True)
 
     pca_path = os.path.join(output_dir, "pca_analysis.png")
@@ -206,24 +187,20 @@ def run_pca_analysis(expression, metadata, output_dir="outputs"):
     
     return variance_ratios, pca_results
 
+
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="PCA analysis of GEO dataset")
-    print("Loading data...")
-    parser.add_argument('--expression', type=str, help="Giving the path of the GEO file")
-    parser.add_argument('--metadata', type=str, help= "Path of the metadata")
-
+    parser.add_argument('--expression', type=str, help="Path of the GEO expression file")
+    parser.add_argument('--metadata', type=str, help="Optional: path of separate metadata file")
     args = parser.parse_args()
 
     exp_path = args.expression
     met_path = args.metadata
 
-    
-    print(exp_path)
-
+    print("Loading data...")
     expr, meta = load_data(expr_path=exp_path, meta_path=met_path)
+    variance_ratios, pca_results = run_pca_analysis(expr, meta)
 
-    
     print("\nExpression data shape:", expr.shape)
     print("Metadata shape:", meta.shape)
     print("\nMetadata preview:")
@@ -231,15 +208,7 @@ if __name__ == "__main__":
     print("\nType distribution:")
     print(meta["Type"].value_counts())
     
+
     print("\n" + "="*50)
     print("RUNNING PCA ANALYSIS")
-    print("="*50)
-
-    variance_ratios, pca_results = run_pca_analysis(expr, meta)
-    
-    print("\n" + "="*50)
-    print("PCA ANALYSIS COMPLETE")
-    print("="*50)
-    print(f"✅ PCA plot generated and saved")
-    print(f"✅ PCA coordinates saved to CSV")
     print(f"✅ Total variance explained: {sum(variance_ratios)*100:.1f}%")
